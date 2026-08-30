@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Наш фотоальбом</title>
+
+<!-- Google Fonts (при офлайне сработают запасные шрифты) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --pink:#fce4ec;
+    --peach:#ffccbc;
+    --gold:#d4a574;
+    --gold-bright:#e8c39e;
+    --ink:#6d4c41;
+    --card:#fffdfb;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    font-family:"Roboto", system-ui, sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    background:linear-gradient(160deg, var(--pink) 0%, #ffe0d3 45%, var(--peach) 100%);
+    background-attachment:fixed;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* Канвас с золотой пыльцой — поверх всего, но не перехватывает клики */
+  #dust{
+    position:fixed; inset:0;
+    width:100%; height:100%;
+    pointer-events:none;
+    z-index:60;
+  }
+
+  /* ---------- Шапка ---------- */
+  header{
+    position:relative;
+    text-align:center;
+    padding:70px 20px 40px;
+  }
+  header h1{
+    font-family:"Playfair Display", Georgia, serif;
+    font-weight:700;
+    font-size:clamp(2.2rem, 6vw, 4rem);
+    letter-spacing:.5px;
+    color:var(--ink);
+    text-shadow:0 2px 18px rgba(212,165,116,.45);
+  }
+  header p{
+    font-family:"Playfair Display", Georgia, serif;
+    font-style:italic;
+    font-size:clamp(1rem,2.4vw,1.35rem);
+    margin-top:14px;
+    color:#a06a55;
+  }
+  /* Золотая линия-разделитель */
+  .divider{
+    width:min(320px,70vw);
+    height:2px;
+    margin:26px auto 0;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+    position:relative;
+  }
+  .divider::after{
+    content:"❦";
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    background:linear-gradient(160deg,var(--pink),var(--peach));
+    padding:0 14px;
+    color:var(--gold);
+    font-size:1.2rem;
+  }
+
+  /* ---------- Переключатель альбомов ---------- */
+  nav.albums{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:12px;
+    margin:30px auto 0;
+    padding:0 16px;
+  }
+  .album-tab{
+    font-family:"Playfair Display", Georgia, serif;
+    font-size:1rem;
+    padding:9px 22px;
+    border-radius:30px;
+    border:1.5px solid var(--gold);
+    background:rgba(255,255,255,.4);
+    color:var(--ink);
+    cursor:pointer;
+    transition:all .3s ease;
+    backdrop-filter:blur(4px);
+  }
+  .album-tab:hover{ background:rgba(255,255,255,.7); transform:translateY(-2px); }
+  .album-tab.active{
+    background:linear-gradient(135deg,var(--gold),var(--gold-bright));
+    color:#fff;
+    box-shadow:0 6px 18px rgba(212,165,116,.5);
+  }
+
+  /* ---------- Лента ---------- */
+  main{
+    max-width:640px;
+    margin:0 auto;
+    padding:30px 18px 120px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:70px;
+  }
+
+  /* Полароид-карточка */
+  .polaroid{
+    --rot:0deg;
+    position:relative;
+    background:var(--card);
+    padding:14px 14px 0;
+    border-radius:4px;
+    box-shadow:0 14px 34px rgba(150,90,60,.28), 0 2px 6px rgba(0,0,0,.08);
+    width:min(88vw,420px);
+    transform:perspective(1000px) translateY(60px) translateZ(-120px) rotate(var(--rot));
+    opacity:0;
+    transition:transform .9s cubic-bezier(.16,.7,.2,1), opacity .9s ease, box-shadow .35s ease;
+    will-change:transform,opacity;
+    cursor:pointer;
+  }
+  .polaroid.revealed{
+    transform:perspective(1000px) translateY(0) translateZ(0) rotate(var(--rot));
+    opacity:1;
+  }
+  .polaroid::before{ /* золотая рамка-свечение */
+    content:"";
+    position:absolute; inset:-2px;
+    border-radius:6px;
+    padding:2px;
+    background:linear-gradient(135deg, rgba(212,165,116,.0), rgba(232,195,158,.7), rgba(212,165,116,0));
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    opacity:0; transition:opacity .4s ease;
+    pointer-events:none;
+  }
+  .polaroid:hover{
+    box-shadow:0 22px 48px rgba(150,90,60,.36), 0 0 26px rgba(212,165,116,.5);
+  }
+  .polaroid:hover::before{ opacity:1; }
+
+  .frame{
+    position:relative;
+    overflow:hidden;
+    background:#f0e6df;
+    border-radius:2px;
+    aspect-ratio:4/5;
+  }
+  .frame img{
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+    opacity:0;
+    transition:opacity .8s ease, transform 6s ease;
+    transform:scale(1.04);
+  }
+  .frame img.loaded{ opacity:1; }
+  .polaroid:hover .frame img.loaded{ transform:scale(1.08); }
+
+  /* Плейсхолдер, если фото не найдено */
+  .frame.error::after{
+    content:"✿";
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:3rem; color:var(--gold);
+    background:linear-gradient(160deg,#fbeee7,#f6ddd2);
+  }
+
+  /* Подпись под полароидом (в стиле рукописной) */
+  .caption{
+    font-family:"Playfair Display", Georgia, serif;
+    text-align:center;
+    padding:16px 6px 20px;
+    min-height:64px;
+  }
+  .caption .title{
+    font-size:1.15rem;
+    font-weight:500;
+    color:var(--ink);
+  }
+  .caption .date{
+    display:block;
+    font-style:italic;
+    font-size:.9rem;
+    color:#b07d68;
+    margin-top:4px;
+  }
+
+  /* Всплывающая подпись при наведении (поверх фото) */
+  .hover-caption{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:26px 16px 14px;
+    background:linear-gradient(to top, rgba(70,40,30,.78), transparent);
+    color:#fff;
+    font-family:"Playfair Display", Georgia, serif;
+    font-style:italic;
+    text-align:center;
+    transform:translateY(100%);
+    opacity:0;
+    transition:transform .45s ease, opacity .45s ease;
+    pointer-events:none;
+  }
+  .polaroid:hover .hover-caption{ transform:translateY(0); opacity:1; }
+  .hover-caption .h-title{ font-size:1.05rem; display:block; }
+  .hover-caption .h-date{ font-size:.82rem; opacity:.85; display:block; margin-top:3px; }
+
+  /* Подсказка о секрете */
+  .hint{
+    position:absolute; top:8px; right:10px;
+    font-size:.7rem; color:var(--gold);
+    opacity:.7;
+    letter-spacing:.5px;
+  }
+
+  /* ---------- Кнопка звука ---------- */
+  #sound-btn{
+    position:fixed; top:18px; right:18px;
+    z-index:70;
+    width:52px; height:52px;
+    border:1.5px solid var(--gold);
+    border-radius:50%;
+    background:rgba(255,255,255,.55);
+    backdrop-filter:blur(6px);
+    color:var(--ink);
+    font-size:1.3rem;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(212,165,116,.4);
+    transition:transform .3s ease, background .3s ease;
+  }
+  #sound-btn:hover{ transform:scale(1.08); background:rgba(255,255,255,.8); }
+  #sound-btn.on{ background:linear-gradient(135deg,var(--gold),var(--gold-bright)); color:#fff; }
+
+  /* ---------- Модалка секрета ---------- */
+  #modal{
+    position:fixed; inset:0;
+    z-index:90;
+    display:none;
+    align-items:center; justify-content:center;
+    padding:24px;
+    background:rgba(80,45,35,.45);
+    backdrop-filter:blur(4px);
+  }
+  #modal.show{ display:flex; animation:fadeIn .4s ease; }
+  .modal-card{
+    background:var(--card);
+    max-width:440px; width:100%;
+    border-radius:14px;
+    padding:40px 32px 34px;
+    text-align:center;
+    box-shadow:0 24px 60px rgba(120,70,50,.4), 0 0 40px rgba(212,165,116,.5);
+    border:1.5px solid var(--gold);
+    position:relative;
+    transform:scale(.9);
+    animation:pop .45s cubic-bezier(.2,.9,.3,1.4) forwards;
+  }
+  .modal-card .seal{ font-size:2rem; color:var(--gold); }
+  .modal-card h3{
+    font-family:"Playfair Display", Georgia, serif;
+    font-weight:700;
+    margin:10px 0 18px;
+    color:var(--ink);
+  }
+  .modal-card p{
+    font-family:"Playfair Display", Georgia, serif;
+    font-style:italic;
+    font-size:1.2rem;
+    line-height:1.6;
+    color:#8a5a45;
+  }
+  .modal-card .close{
+    position:absolute; top:12px; right:16px;
+    font-size:1.4rem; color:var(--gold);
+    cursor:pointer; border:none; background:none;
+  }
+  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+  @keyframes pop{ to{ transform:scale(1); } }
+
+  /* Загрузчик снизу для «бесконечной» ленты */
+  #loader{
+    text-align:center;
+    font-family:"Playfair Display", serif;
+    font-style:italic;
+    color:#b07d68;
+    padding:20px;
+    opacity:.7;
+  }
+
+  @media (max-width:480px){
+    header{ padding:50px 16px 26px; }
+    main{ gap:52px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="dust"></canvas>
+
+<button id="sound-btn" title="Музыка вкл/выкл" aria-label="Звук">♪</button>
+
+<header>
+  <h1>Наш фотоальбом</h1>
+  <p>Тёплые моменты, которые хочется хранить</p>
+  <div class="divider"></div>
+  <nav class="albums" id="albums"></nav>
+</header>
+
+<main id="feed"></main>
+<div id="loader">· листаем дальше ·</div>
+
+<div id="modal">
+  <div class="modal-card">
+    <button class="close" aria-label="Закрыть">×</button>
+    <div class="seal">❧</div>
+    <h3>Секрет этого фото</h3>
+    <p id="modal-text"></p>
+  </div>
+</div>
+
+<script>
+/* ================= ДАННЫЕ ================= */
+/* Встроенная копия — fallback на случай, если fetch('data.json')
+   заблокирован политикой file:// (Chrome/Edge). Сначала пробуем файл. */
+const EMBEDDED_DATA = [
+  {"id": 1, "folder": "znakomstvo", "file": "arbat.jpg", "title": "Прогулки по Арбату", "date": "7 ноября 2020", "secret": "Были молоды и чаще выходили из дома"},
+  {"id": 2, "folder": "znakomstvo", "file": "vechera-pri-svechah.jpg", "title": "Вечер при свечах", "date": "11 октября 2020", "secret": "Раньше чаще при свечах сидели, была в этом какая-то романтика"},
+  {"id": 3, "folder": "znakomstvo", "file": "uzhin-pri-svechah.jpg", "title": "Мой день рождения", "date": "14 января 2021", "secret": "Каждый День Рождения с тобой - самый лучший"},
+  {"id": 4, "folder": "znakomstvo", "file": "domashnee-foto.jpg", "title": "Милое домашнее фото", "date": "8 ноября 2020", "secret": "Обожаю твои милые домашние фото, от них так теплом веет"},
+  {"id": 5, "folder": "znakomstvo", "file": "novyy-cvet-volos.jpg", "title": "Новый цвет волос", "date": "20 ноября 2020", "secret": "Новый цвет волос, получилось тогда прикольно"},
+  {"id": 6, "folder": "znakomstvo", "file": "pervye-foto.jpg", "title": "Первые фото со старого телефона", "date": "7 октября 2020", "secret": "Кто же знал тогда, что нам окажется так хорошо вдвоем"},
+  {"id": 7, "folder": "znakomstvo", "file": "progulka-centr.jpg", "title": "Какая-то прогулка по центру", "date": "26 января 2021", "secret": "Не любил гулять тогда, но сейчас одно тепло от этих воспоминаний"},
+  {"id": 8, "folder": "znakomstvo", "file": "progulka-centr-2.jpg", "title": "Еще одна прогулка по центру", "date": "7 ноября 2020", "secret": "Молодые  и милые"},
+  {"id": 9, "folder": "progulki", "file": "godovshchina.jpg", "title": "Наша первая годовщина", "date": "1 июня 2021", "secret": "Наша первая годовщина"},
+  {"id": 10, "folder": "progulki", "file": "komnata-yarosti.jpg", "title": "Сходили в комнату ярости", "date": "18 июля 2021", "secret": "Сходили в комнату ярости"},
+  {"id": 11, "folder": "progulki", "file": "komnata-yarosti-2.jpg", "title": "Еще фотки из комнаты ярости", "date": "18 июля 2021", "secret": "Еще фотки из комнаты ярости"},
+  {"id": 12, "folder": "progulki", "file": "kupalis.jpg", "title": "Где-то успели искупаться", "date": "17 июля 2021", "secret": "Где-то успели искупаться"},
+  {"id": 13, "folder": "progulki", "file": "na-katere-2.jpg", "title": "Даже на катере покатались", "date": "21 июля 2021", "secret": "Даже на катере покатались"},
+  {"id": 14, "folder": "progulki", "file": "na-katere.jpg", "title": "И даже мои убогие фото есть", "date": "21 июля 2021", "secret": "И даже мои убогие фото есть"},
+  {"id": 15, "folder": "progulki", "file": "pervye-progulki-1.jpg", "title": "Обожаю наши первые прогулки", "date": "27 марта 2021", "secret": "Обожаю наши первые прогулки"},
+  {"id": 16, "folder": "progulki", "file": "pervye-progulki-2.jpg", "title": "Обожаю наши первые прогулки", "date": "11 апреля 2021", "secret": "Обожаю наши первые прогулки"},
+  {"id": 17, "folder": "progulki", "file": "pervye-progulki-3.jpg", "title": "Обожаю наши первые прогулки", "date": "30 апреля 2021", "secret": "Обожаю наши первые прогулки"},
+  {"id": 18, "folder": "progulki", "file": "pervye-progulki-4.jpg", "title": "Обожаю наши первые прогулки", "date": "30 апреля 2021", "secret": "Обожаю наши первые прогулки"},
+  {"id": 19, "folder": "progulki", "file": "pervye-progulki-5.jpg", "title": "Обожаю наши первые прогулки", "date": "15 мая 2021", "secret": "Обожаю наши первые прогулки"},
+  {"id": 20, "folder": "chudische", "file": "podstrigaem-kogti.jpg", "title": "Если я закрою глаза - они подумают, что я сплю и отпустят меня", "date": "7 июля 2024", "secret": "Если я закрою глаза - они подумают, что я сплю и отпустят меня"},
+  {"id": 21, "folder": "chudische", "file": "kuper-i-pivo.jpg", "title": "А дайте пивка", "date": "10 июля 2024", "secret": "А дайте пивка"}
+];
+
+/* Красивые названия альбомов для вкладок (slug → отображаемое имя).
+   Если папки нет в этом списке, на вкладке покажется сам slug. */
+const ALBUM_LABELS = {
+  "znakomstvo": "Знакомство",
+  "progulki":   "Прогулки",
+  "chudische":  "Чудище"
+};
+function albumLabel(slug){ return ALBUM_LABELS[slug] || slug; }
+
+/* Путь к фото: photos/<папка>/<файл>. Имена латинские, но кодируем на всякий. */
+function photoPath(item){
+  return 'photos/' + encodeURIComponent(item.folder) + '/' + encodeURIComponent(item.file);
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('data.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('bad status');
+    const json = await res.json();
+    if(Array.isArray(json) && json.length) return json;
+    throw new Error('empty');
+  }catch(e){
+    // file:// или отсутствие сервера — используем встроенные данные
+    return EMBEDDED_DATA;
+  }
+}
+
+/* ================= ЗВУК (Web Audio) ================= */
+const Sound = (() => {
+  let ctx = null;
+  let bgOn = false;
+  let bgNodes = null;
+  let bgAudio = null; // если есть music.mp3
+
+  function ensure(){
+    if(!ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+    }
+    if(ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  // Шелест страницы — короткий отфильтрованный шум
+  function rustle(){
+    if(!ctx || ctx.state !== 'running') return; // играем только когда аудио разблокировано
+    const dur = 0.5;
+    const buf = ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){
+      const t = i/d.length;
+      d[i] = (Math.random()*2-1) * Math.pow(1-t, 2); // затухающий шум
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=2600; bp.Q.value=.7;
+    const g = ctx.createGain(); g.gain.value = .05;
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start();
+  }
+
+  // Мягкий фоновый эмбиент (если нет music.mp3)
+  function startSynthAmbient(){
+    const master = ctx.createGain();
+    master.gain.value = 0;
+    master.gain.linearRampToValueAtTime(.12, ctx.currentTime + 2);
+    master.connect(ctx.destination);
+
+    const freqs = [220, 277.18, 329.63, 440]; // A / C# / E / A — тёплое трезвучие
+    const oscs = freqs.map((f,i) => {
+      const o = ctx.createOscillator(); o.type = i%2? 'sine':'triangle'; o.frequency.value = f;
+      const g = ctx.createGain(); g.gain.value = .25/(i+1);
+      // лёгкое дыхание громкости
+      const lfo = ctx.createOscillator(); lfo.frequency.value = .05 + i*.03;
+      const lfoG = ctx.createGain(); lfoG.gain.value = .12;
+      lfo.connect(lfoG).connect(g.gain);
+      o.connect(g).connect(master);
+      o.start(); lfo.start();
+      return {o, lfo};
+    });
+    return {master, oscs};
+  }
+
+  function toggle(){
+    ensure();
+    bgOn = !bgOn;
+    if(bgOn){
+      // пробуем music.mp3, иначе синтез
+      if(bgAudio === null){
+        bgAudio = new Audio('music.mp3');
+        bgAudio.loop = true; bgAudio.volume = .5;
+      }
+      const p = bgAudio.play();
+      if(p && p.then){
+        p.catch(() => { // нет файла — включаем синтезированный эмбиент
+          if(!bgNodes) bgNodes = startSynthAmbient();
+          else bgNodes.master.gain.linearRampToValueAtTime(.12, ctx.currentTime+1.5);
+        });
+      }
+    }else{
+      if(bgAudio){ bgAudio.pause(); }
+      if(bgNodes){ bgNodes.master.gain.linearRampToValueAtTime(0, ctx.currentTime+1); }
+    }
+    return bgOn;
+  }
+
+  return { rustle, toggle, ensure };
+})();
+
+const soundBtn = document.getElementById('sound-btn');
+soundBtn.addEventListener('click', () => {
+  const on = Sound.toggle();
+  soundBtn.classList.toggle('on', on);
+  soundBtn.textContent = on ? '♫' : '♪';
+});
+
+/* ================= ЗОЛОТАЯ ПЫЛЬЦА ================= */
+(function dustField(){
+  const canvas = document.getElementById('dust');
+  const g = canvas.getContext('2d');
+  let W, H, dpr;
+  const particles = [];
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    W = canvas.width = innerWidth*dpr;
+    H = canvas.height = innerHeight*dpr;
+    canvas.style.width = innerWidth+'px';
+    canvas.style.height = innerHeight+'px';
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  function spawn(x,y,n){
+    for(let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = Math.random()*1.4+.2;
+      particles.push({
+        x:x*dpr, y:y*dpr,
+        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - .4,
+        life:1, r:Math.random()*2.4+.8,
+        hue: 38 + Math.random()*12
+      });
+    }
+    if(particles.length>500) particles.splice(0, particles.length-500);
+  }
+
+  let lastX=0,lastY=0,lastT=0;
+  function move(x,y){
+    const now = performance.now();
+    if(now-lastT < 16) return;
+    const dist = Math.hypot(x-lastX, y-lastY);
+    lastX=x; lastY=y; lastT=now;
+    spawn(x, y, Math.min(6, 1+Math.floor(dist/12)));
+  }
+  addEventListener('mousemove', e => move(e.clientX, e.clientY));
+  addEventListener('touchmove', e => {
+    const t=e.touches[0]; if(t) move(t.clientX, t.clientY);
+  }, {passive:true});
+
+  function frame(){
+    g.clearRect(0,0,W,H);
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x+=p.vx*dpr; p.y+=p.vy*dpr; p.vy+=.02*dpr; p.life-=.012;
+      if(p.life<=0){ particles.splice(i,1); continue; }
+      g.globalAlpha = Math.max(0,p.life)*.9;
+      const grd = g.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*dpr*3);
+      grd.addColorStop(0, `hsla(${p.hue},75%,72%,1)`);
+      grd.addColorStop(1, `hsla(${p.hue},75%,60%,0)`);
+      g.fillStyle = grd;
+      g.beginPath();
+      g.arc(p.x,p.y,p.r*dpr*3,0,Math.PI*2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ================= ЛЕНТА / БЕСКОНЕЧНЫЙ СКРОЛЛ ================= */
+const feed = document.getElementById('feed');
+const loader = document.getElementById('loader');
+let DATA = [];      // все фото
+let ACTIVE = [];    // фото текущего альбома
+let cursor = 0;
+const BATCH = 6;
+const albumsNav = document.getElementById('albums');
+
+// Наблюдатель за появлением карточек: reveal + lazy-load + шелест
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if(!entry.isIntersecting) return;
+    const card = entry.target;
+    // lazy load
+    const img = card.querySelector('img');
+    if(img && img.dataset.src && !img.src){
+      img.src = img.dataset.src;
+    }
+    if(!card.classList.contains('revealed')){
+      card.classList.add('revealed');
+      Sound.rustle();
+    }
+    revealObserver.unobserve(card);
+  });
+}, {threshold:.18, rootMargin:'0px 0px -8% 0px'});
+
+function makeCard(item, index){
+  const card = document.createElement('article');
+  card.className = 'polaroid';
+  card.style.setProperty('--rot', ((index % 2 ? 1 : -1) * (1.2 + (index*7 % 5) * .5)).toFixed(2) + 'deg');
+
+  const src = photoPath(item);
+  card.innerHTML = `
+    <span class="hint">✦ 3 клика</span>
+    <div class="frame">
+      <img data-src="${src}" alt="${escapeHtml(item.title)}" loading="lazy">
+      <div class="hover-caption">
+        <span class="h-title">${escapeHtml(item.title)}</span>
+        <span class="h-date">${escapeHtml(item.date)}</span>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="title">${escapeHtml(item.title)}</span>
+      <span class="date">${escapeHtml(item.date)}</span>
+    </div>`;
+
+  const img = card.querySelector('img');
+  img.addEventListener('load', () => img.classList.add('loaded'));
+  img.addEventListener('error', () => {
+    card.querySelector('.frame').classList.add('error');
+    img.classList.add('loaded');
+  });
+
+  // Параллакс-качание при наведении
+  attachParallax(card);
+  // Секрет по 3 кликам
+  attachSecret(card, item.secret);
+
+  revealObserver.observe(card);
+  return card;
+}
+
+function appendBatch(){
+  if(!ACTIVE.length) return;
+  for(let i=0;i<BATCH;i++){
+    const item = ACTIVE[cursor % ACTIVE.length]; // зацикливаем для «бесконечной» ленты
+    feed.appendChild(makeCard(item, cursor));
+    cursor++;
+  }
+}
+
+/* ---- Вкладки альбомов ---- */
+function buildAlbums(){
+  const folders = [...new Set(DATA.map(i => i.folder))];
+  const tabs = [{label:'Все', folder:null}, ...folders.map(f => ({label:albumLabel(f), folder:f}))];
+  albumsNav.innerHTML = '';
+  tabs.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'album-tab';
+    btn.textContent = t.label;
+    btn.addEventListener('click', () => selectAlbum(t.folder, btn));
+    albumsNav.appendChild(btn);
+  });
+  // по умолчанию активна «Все»
+  selectAlbum(null, albumsNav.firstChild);
+}
+
+function selectAlbum(folder, btn){
+  [...albumsNav.children].forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  ACTIVE = folder ? DATA.filter(i => i.folder === folder) : DATA;
+  cursor = 0;
+  feed.innerHTML = '';
+  appendBatch();
+  appendBatch();
+  scrollTo({top:0, behavior:'smooth'});
+}
+
+// Догрузка при приближении к низу
+const loadObserver = new IntersectionObserver((entries) => {
+  if(entries[0].isIntersecting && DATA.length){
+    appendBatch();
+  }
+}, {rootMargin:'600px'});
+loadObserver.observe(loader);
+
+/* ---- Параллакс полароида ---- */
+function attachParallax(card){
+  let baseRot = parseFloat(card.style.getPropertyValue('--rot')) || 0;
+  card.addEventListener('mousemove', e => {
+    if(!card.classList.contains('revealed')) return;
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left)/r.width - .5;
+    const py = (e.clientY - r.top)/r.height - .5;
+    card.style.transform =
+      `perspective(1000px) rotateX(${(-py*7).toFixed(2)}deg) rotateY(${(px*7).toFixed(2)}deg) rotate(${baseRot}deg) translateZ(12px)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform =
+      `perspective(1000px) translateY(0) translateZ(0) rotate(${baseRot}deg)`;
+  });
+}
+
+/* ---- Секрет по 3 кликам ---- */
+function attachSecret(card, secret){
+  let clicks = 0, timer = null;
+  card.addEventListener('click', () => {
+    clicks++;
+    clearTimeout(timer);
+    timer = setTimeout(() => { clicks = 0; }, 800);
+    if(clicks >= 3){
+      clicks = 0;
+      openModal(secret);
+    }
+  });
+}
+
+/* ---- Модалка ---- */
+const modal = document.getElementById('modal');
+const modalText = document.getElementById('modal-text');
+function openModal(text){
+  modalText.textContent = text || '…';
+  modal.classList.add('show');
+  Sound.rustle();
+}
+function closeModal(){ modal.classList.remove('show'); }
+modal.addEventListener('click', e => { if(e.target === modal) closeModal(); });
+modal.querySelector('.close').addEventListener('click', closeModal);
+addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+/* ---- утилита ---- */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+/* ================= СТАРТ ================= */
+loadData().then(data => {
+  DATA = data;
+  buildAlbums();
+});
+
+// Разблокировка звука по первому касанию/клику (политика браузеров)
+['click','touchstart','keydown'].forEach(ev =>
+  addEventListener(ev, () => Sound.ensure(), {once:true})
+);
+</script>
+</body>
+</html>
