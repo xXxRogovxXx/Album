@@ -18,6 +18,8 @@ DATA_JSON = os.path.join(ROOT, "data.json")
 INDEX_HTML = os.path.join(ROOT, "index.html")
 
 IMG_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+VIDEO_EXT = {".mp4", ".webm", ".mov", ".m4v", ".ogv"}
+MEDIA_EXT = IMG_EXT | VIDEO_EXT
 MONTHS = ["", "января", "февраля", "марта", "апреля", "мая", "июня",
           "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 
@@ -90,12 +92,12 @@ def scan_new(data):
     # свободные фото в корне photos/
     for fn in sorted(os.listdir(PHOTOS_DIR)):
         full = os.path.join(PHOTOS_DIR, fn)
-        if os.path.isfile(full) and os.path.splitext(fn)[1].lower() in IMG_EXT:
+        if os.path.isfile(full) and os.path.splitext(fn)[1].lower() in MEDIA_EXT:
             pending.append(("", fn))
     # фото внутри альбомов
     for slug in existing_folders():
         for fn in sorted(os.listdir(os.path.join(PHOTOS_DIR, slug))):
-            if os.path.splitext(fn)[1].lower() not in IMG_EXT:
+            if os.path.splitext(fn)[1].lower() not in MEDIA_EXT:
                 continue
             if (slug, fn) not in known:
                 pending.append((slug, fn))

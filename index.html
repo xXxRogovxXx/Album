@@ -173,6 +173,17 @@
   .frame img.loaded{ opacity:1; }
   .polaroid:hover .frame img.loaded{ transform:scale(1.04); }
 
+  /* Видео в рамке полароида */
+  .frame video{
+    width:100%; height:auto;
+    display:block;
+    background:#000;
+    opacity:0;
+    transition:opacity .8s ease;
+  }
+  .frame video.loaded{ opacity:1; }
+  .frame.is-video{ background:#000; }
+
   /* Плейсхолдер, если фото не найдено */
   .frame.error{ min-height:280px; }
   .frame.error::after{
@@ -360,7 +371,10 @@ const EMBEDDED_DATA = [
   {"id": 19, "folder": "progulki", "file": "pervye-progulki-5.jpg", "title": "Обожаю наши первые прогулки", "date": "15 мая 2021", "secret": "Обожаю наши первые прогулки"},
   {"id": 20, "folder": "chudische", "file": "podstrigaem-kogti.jpg", "title": "Если я закрою глаза - они подумают, что я сплю и отпустят меня", "date": "7 июля 2024", "secret": "Если я закрою глаза - они подумают, что я сплю и отпустят меня"},
   {"id": 21, "folder": "chudische", "file": "kuper-i-pivo.jpg", "title": "А дайте пивка", "date": "10 июля 2024", "secret": "А дайте пивка"},
-  {"id": 22, "folder": "chudische", "file": "ya-lyubimaya-i-chudische.jpg", "title": "я, любимая и чудище", "date": "6 октября 2024", "secret": "А дайте пивка"}
+  {"id": 22, "folder": "chudische", "file": "ya-lyubimaya-i-chudische.jpg", "title": "я, любимая и чудище", "date": "6 октября 2024", "secret": "А дайте пивка"},
+  {"id": 23, "folder": "chudische", "file": "20241108-184123.jpg", "title": "Новая обновка", "date": "8 ноября 2024", "secret": "Новая обновка"},
+  {"id": 24, "folder": "chudische", "file": "20241214-212714.jpg", "title": "Танцуем на руках у мамки", "date": "14 декабря 2024", "secret": "Танцуем на руках у мамки"},
+  {"id": 25, "folder": "chudische", "file": "20241224-214123.jpg", "title": "Царь, просто царь", "date": "24 декабря 2024", "secret": "Царь, просто царь"}
 ];
 
 /* Красивые названия альбомов для вкладок (slug → отображаемое имя).
@@ -372,9 +386,16 @@ const ALBUM_LABELS = {
 };
 function albumLabel(slug){ return ALBUM_LABELS[slug] || slug; }
 
-/* Путь к фото: photos/<папка>/<файл>. Имена латинские, но кодируем на всякий. */
+/* Путь к фото/видео: photos/<папка>/<файл>. Имена латинские, но кодируем на всякий. */
 function photoPath(item){
   return 'photos/' + encodeURIComponent(item.folder) + '/' + encodeURIComponent(item.file);
+}
+
+/* Это видео? (по расширению файла) */
+const VIDEO_EXT = ['.mp4', '.webm', '.mov', '.m4v', '.ogv'];
+function isVideo(file){
+  const f = (file || '').toLowerCase();
+  return VIDEO_EXT.some(ext => f.endsWith(ext));
 }
 
 async function loadData(){
@@ -557,10 +578,11 @@ const revealObserver = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if(!entry.isIntersecting) return;
     const card = entry.target;
-    // lazy load
-    const img = card.querySelector('img');
-    if(img && img.dataset.src && !img.src){
-      img.src = img.dataset.src;
+    // lazy load (фото и видео)
+    const el = card.querySelector('.media');
+    if(el && el.dataset.src && !el.src){
+      el.src = el.dataset.src;
+      if(el.tagName === 'VIDEO') el.load();
     }
     if(!card.classList.contains('revealed')){
       card.classList.add('revealed');
@@ -576,10 +598,14 @@ function makeCard(item, index){
   card.style.setProperty('--rot', ((index % 2 ? 1 : -1) * (1.2 + (index*7 % 5) * .5)).toFixed(2) + 'deg');
 
   const src = photoPath(item);
+  const video = isVideo(item.file);
+  const media = video
+    ? `<video class="media" data-src="${src}" controls playsinline preload="none"></video>`
+    : `<img class="media" data-src="${src}" alt="${escapeHtml(item.title)}" loading="lazy">`;
   card.innerHTML = `
     <span class="hint">✦ 3 клика</span>
-    <div class="frame">
-      <img data-src="${src}" alt="${escapeHtml(item.title)}" loading="lazy">
+    <div class="frame${video ? ' is-video' : ''}">
+      ${media}
       <div class="hover-caption">
         <span class="h-title">${escapeHtml(item.title)}</span>
         <span class="h-date">${escapeHtml(item.date)}</span>
@@ -590,11 +616,12 @@ function makeCard(item, index){
       <span class="date">${escapeHtml(item.date)}</span>
     </div>`;
 
-  const img = card.querySelector('img');
-  img.addEventListener('load', () => img.classList.add('loaded'));
-  img.addEventListener('error', () => {
+  const el = card.querySelector('.media');
+  const onReady = () => el.classList.add('loaded');
+  el.addEventListener(video ? 'loadeddata' : 'load', onReady);
+  el.addEventListener('error', () => {
     card.querySelector('.frame').classList.add('error');
-    img.classList.add('loaded');
+    el.classList.add('loaded');
   });
 
   // Параллакс-качание при наведении
