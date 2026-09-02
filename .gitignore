@@ -6,5 +6,6 @@
 
 # Служебное
 embedded.txt
+__pycache__/
 Thumbs.db
 .DS_Store
